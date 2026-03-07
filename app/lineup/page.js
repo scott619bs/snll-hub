@@ -86,21 +86,24 @@ export default function LineupPage() {
       // Load grades and stats
       const [gradesResp, statsResp] = await Promise.all([
         fetch(`${SUPABASE_URL}/rest/v1/player_position_grades?select=*`, { headers: { apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY } }),
-        fetch(`${SUPABASE_URL}/rest/v1/game_stats?team_name=eq.Myers&select=player_name,pa,ab,h,bb,hbp,sf,so,sb,obp,avg`, { headers: { apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY } })
+        // Note: obp/avg are NOT stored columns — calculate from counting stats
+        fetch(`${SUPABASE_URL}/rest/v1/game_stats?team_name=eq.Myers&select=player_name,pa,ab,h,bb,hbp,sf,so,sb`, { headers: { apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY } })
       ])
       const gradesData = await gradesResp.json()
-      const statsData  = await statsResp.json()
+      const statsRaw   = await statsResp.json()
+      // Guard: if query failed, statsRaw will be an error object not an array
+      const statsData  = Array.isArray(statsRaw) ? statsRaw : []
 
       // Build PCI map per player
       const pciData = {}
-      ;(gradesData || []).forEach(r => {
+      ;(Array.isArray(gradesData) ? gradesData : []).forEach(r => {
         if (!pciData[r.player_name]) pciData[r.player_name] = {}
         pciData[r.player_name][r.position] = r.coach_grade * 20 // simple grade→PCI
       })
 
-      // Aggregate batting stats per player
+      // Aggregate batting stats per player (compute obp/avg from counting stats)
       const battingStats = {}
-      ;(statsData || []).forEach(r => {
+      statsData.forEach(r => {
         if (!battingStats[r.player_name]) battingStats[r.player_name] = { pa:0, ab:0, h:0, bb:0, hbp:0, sf:0, so:0, sb:0, obp:null, avg:null }
         const b = battingStats[r.player_name]
         b.pa += r.pa || 0; b.ab += r.ab || 0; b.h += r.h || 0
@@ -115,7 +118,7 @@ export default function LineupPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          players: activePlayers.map(p => ({ ...p, isPool: availability[p.name]?.isPool })),
+          players: activePlayers.map(p => ({ ...p, isPool: p.isPool || false })),
           pciData,
           battingStats,
           innings,
