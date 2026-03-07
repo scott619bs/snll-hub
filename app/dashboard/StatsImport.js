@@ -150,7 +150,7 @@ export default function StatsImport() {
       }
     }
     // Text paste — let it fall through to textarea normally
-  }, [gameDate, opponent, apiKey])
+  }, [gameDate, opponent])
 
   // ─── HANDLE DROP ────────────────────────────────────────────────────────────
   const handleDrop = useCallback(async (e) => {
@@ -171,7 +171,7 @@ export default function StatsImport() {
       const text = await file.text()
       setInputVal(text)
     }
-  }, [gameDate, opponent, apiKey])
+  }, [gameDate, opponent])
 
   const logColor = { ok:'#1e6b2e', error:'#a82020', warn:'#8a6000', info:'#2c1505', next:'#c8922a' }
   const canSend = !sending && inputVal.trim() && gameDate && opponent && !inputVal.startsWith('[Image')
