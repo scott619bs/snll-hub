@@ -3,9 +3,16 @@
 import { useState, useRef, useCallback } from 'react'
 import { parseCSV, classifyCSV, filterTotals, mapFullRow, aiClassify, sbInsert, SUPABASE_URL, SERVICE_KEY } from '../../lib/classify'
 
+const LOCATIONS = ['Rio Seco Minors Field 1','Rio Seco Minors Field 2','Rio Seco Majors Field 1','Chet Harritt Park - Minors','Lindo Lake Park','LALL Field 1','LALL Field 2']
+const OPPONENTS = ['Leon-Padres','LALL Minors B - 1','Sickmeyer-Green Camo Padres','Francis-Padres','Horner-Padres Minor B','Almada - City Connect']
+
 export default function StatsImport() {
   const [gameDate, setGameDate] = useState('')
   const [opponent, setOpponent] = useState('')
+  const [homeAway, setHomeAway] = useState('home')
+  const [gameTime, setGameTime] = useState('')
+  const [location, setLocation] = useState('')
+  const [umpire, setUmpire] = useState('')
   const [inputVal, setInputVal] = useState('')
   const [log, setLog] = useState([])
   const [sending, setSending] = useState(false)
@@ -16,7 +23,6 @@ export default function StatsImport() {
     setLog(prev => [...prev, { msg, type, ts: new Date().toLocaleTimeString() }])
   }
 
-  // ─── DETECT AND STAGE INPUT ─────────────────────────────────────────────────
   async function stageInput(rawInput, inputType, mimeType = null) {
     if (!gameDate || !opponent) { addLog('Set game date and opponent first', 'error'); return }
     setSending(true)
@@ -31,15 +37,12 @@ export default function StatsImport() {
         classification = cls.type
         confidence = cls.confidence
         reason = cls.reason
-
-        // Build extracted JSON from CSV
         const rows = filterTotals(parsed.rows)
         extracted = buildExtractedFromCSV(rows, classification, parsed.headers)
         previewRows = rows.slice(0, 3)
         addLog(`CSV detected: ${classification.toUpperCase()} (${confidence} confidence)`, 'info')
-
       } else if (inputType === 'image') {
-                addLog('Sending image to Claude Vision...', 'info')
+        addLog('Sending image to Claude Vision...', 'info')
         const result = await aiClassify(null, { data: rawInput, mimeType }, 'image', gameDate, opponent)
         classification = result.classification
         confidence = result.confidence
@@ -52,10 +55,13 @@ export default function StatsImport() {
         addLog(`Image classified: ${classification.toUpperCase()} (${confidence} confidence)`, 'info')
       }
 
-      // Write to staging
       const stagingRow = {
         game_date: gameDate,
         opponent,
+        home_away: homeAway,
+        game_time: gameTime || null,
+        location: location || null,
+        umpire: umpire || null,
         source_type: inputType,
         raw_input: inputType === 'csv' ? rawInput : '[base64 image]',
         image_mime_type: mimeType,
@@ -124,13 +130,11 @@ export default function StatsImport() {
     return { batting_stats:[], pitching_stats:[], fielding_stats:[], innings_played:[] }
   }
 
-  // ─── HANDLE SEND ────────────────────────────────────────────────────────────
   async function handleSend() {
     if (!inputVal.trim()) return
     await stageInput(inputVal.trim(), 'csv')
   }
 
-  // ─── HANDLE PASTE (detect image vs text) ────────────────────────────────────
   const handlePaste = useCallback(async (e) => {
     const items = e.clipboardData?.items
     if (!items) return
@@ -149,10 +153,8 @@ export default function StatsImport() {
         return
       }
     }
-    // Text paste — let it fall through to textarea normally
   }, [gameDate, opponent])
 
-  // ─── HANDLE DROP ────────────────────────────────────────────────────────────
   const handleDrop = useCallback(async (e) => {
     e.preventDefault()
     setDragOver(false)
@@ -183,7 +185,8 @@ export default function StatsImport() {
       <div style={s.card}>
         <div style={s.header}><h3 style={s.title}>Game Details</h3></div>
         <div style={s.body}>
-          <div style={s.row}>
+          {/* Row 1: Date, Opponent, Home/Away */}
+          <div style={{...s.row, gridTemplateColumns:'1fr 1fr auto', marginBottom:'12px'}}>
             <div style={s.field}>
               <label style={s.label}>Game Date</label>
               <input type="date" value={gameDate} onChange={e=>setGameDate(e.target.value)} style={s.input} />
@@ -191,11 +194,35 @@ export default function StatsImport() {
             <div style={s.field}>
               <label style={s.label}>Opponent</label>
               <input type="text" value={opponent} onChange={e=>setOpponent(e.target.value)} placeholder="e.g. Leon-Padres" list="opp-list" style={s.input} />
-              <datalist id="opp-list">
-                {['Leon-Padres','LALL Minors B - 1','Sickmeyer-Green Camo Padres','Francis-Padres','Horner-Padres Minor B','Almada - City Connect'].map(o=><option key={o} value={o}/>)}
-              </datalist>
+              <datalist id="opp-list">{OPPONENTS.map(o=><option key={o} value={o}/>)}</datalist>
             </div>
-
+            <div style={s.field}>
+              <label style={s.label}>Home / Away</label>
+              <div style={s.toggle}>
+                {['home','away'].map(v => (
+                  <button key={v} onClick={()=>setHomeAway(v)}
+                    style={{...s.toggleBtn, ...(homeAway===v ? s.toggleBtnActive : {})}}>
+                    {v === 'home' ? '🏠 Home' : '✈️ Away'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          {/* Row 2: Time, Location, Umpire */}
+          <div style={{...s.row, gridTemplateColumns:'1fr 2fr 1fr'}}>
+            <div style={s.field}>
+              <label style={s.label}>Game Time</label>
+              <input type="time" value={gameTime} onChange={e=>setGameTime(e.target.value)} style={s.input} />
+            </div>
+            <div style={s.field}>
+              <label style={s.label}>Location</label>
+              <input type="text" value={location} onChange={e=>setLocation(e.target.value)} placeholder="Field name" list="loc-list" style={s.input} />
+              <datalist id="loc-list">{LOCATIONS.map(l=><option key={l} value={l}/>)}</datalist>
+            </div>
+            <div style={s.field}>
+              <label style={s.label}>Umpire</label>
+              <input type="text" value={umpire} onChange={e=>setUmpire(e.target.value)} placeholder="Umpire name" style={s.input} />
+            </div>
           </div>
         </div>
       </div>
@@ -231,9 +258,7 @@ export default function StatsImport() {
                 background: dragOver ? '#fdf6e8' : undefined,
               }}
             />
-            {dragOver && (
-              <div style={s.dropOverlay}>Drop image here</div>
-            )}
+            {dragOver && <div style={s.dropOverlay}>Drop image here</div>}
           </div>
           <button
             onClick={handleSend}
@@ -276,10 +301,13 @@ const s = {
   tag:{marginLeft:'auto',background:'rgba(200,146,42,0.2)',color:'#c8922a',padding:'2px 7px',borderRadius:'4px',fontFamily:"'DM Mono',monospace",fontSize:'9px',letterSpacing:'0.06em'},
   clearBtn:{marginLeft:'auto',background:'rgba(247,240,230,0.1)',border:'1px solid rgba(247,240,230,0.2)',borderRadius:'4px',color:'rgba(247,240,230,0.6)',fontFamily:"'DM Mono',monospace",fontSize:'10px',padding:'2px 8px',cursor:'pointer'},
   body:{padding:'18px'},
-  row:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'14px'},
+  row:{display:'grid',gap:'14px'},
   field:{display:'flex',flexDirection:'column',gap:'5px'},
   label:{fontFamily:"'DM Mono',monospace",fontSize:'10px',color:'#7a5c3e',textTransform:'uppercase',letterSpacing:'0.1em'},
   input:{padding:'9px 12px',border:'1.5px solid rgba(44,21,5,0.12)',borderRadius:'7px',fontSize:'14px',fontFamily:"'Barlow',sans-serif",color:'#1a0e06',background:'#f7f0e6',outline:'none'},
+  toggle:{display:'flex',gap:'0',border:'1.5px solid rgba(44,21,5,0.12)',borderRadius:'7px',overflow:'hidden'},
+  toggleBtn:{flex:1,padding:'9px 10px',background:'#f7f0e6',border:'none',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:'12px',cursor:'pointer',color:'#7a5c3e',whiteSpace:'nowrap'},
+  toggleBtnActive:{background:'#2c1505',color:'#f7f0e6'},
   hint:{fontSize:'12px',color:'#7a5c3e',marginBottom:'12px',lineHeight:1.6,fontFamily:"'DM Mono',monospace"},
   textarea:{width:'100%',padding:'12px',border:'1.5px dashed rgba(44,21,5,0.2)',borderRadius:'9px',fontSize:'12px',fontFamily:"'DM Mono',monospace",color:'#1a0e06',background:'#f7f0e6',outline:'none',resize:'vertical',lineHeight:1.4,transition:'all 0.15s'},
   dropOverlay:{position:'absolute',inset:0,background:'rgba(200,146,42,0.12)',border:'2px solid #c8922a',borderRadius:'9px',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:'18px',color:'#c8922a',pointerEvents:'none'},
