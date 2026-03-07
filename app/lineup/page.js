@@ -602,7 +602,7 @@ function PrintCard({ lineupPlan, gameDate, opponent, homeAway, innings, allPlaye
       display:'flex', flexDirection:'column', background:'white', boxSizing:'border-box', padding:'0.3in'
     }}>
       <div style={{background:'#2c1505',color:'#FFD54F',padding:'10px 20px',borderRadius:'10px',display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}}>
-        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:'26px"}}>
+        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:'26px'}}>
           {"\u26be"} Dark Brown Padres vs {opponent}
         </div>
         <div style={{textAlign:'right'}}>
