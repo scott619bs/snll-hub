@@ -38,6 +38,8 @@ export default function LineupPage() {
   const [editMode, setEditMode]         = useState(false)
   const [dragPlayer, setDragPlayer]     = useState(null)
   const [saving, setSaving]             = useState(false)
+  const [savedPlans, setSavedPlans]     = useState([])
+  const [showSaved, setShowSaved]       = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -46,10 +48,54 @@ export default function LineupPage() {
       setUser(user)
       setRole(getRole(user.email))
       loadPlayers()
+      loadSavedPlans()
     })
   }, [])
 
-  async function loadPlayers() {
+  async function loadSavedPlans() {
+    const resp = await fetch(
+      `${SUPABASE_URL}/rest/v1/lineup_plans?select=id,game_date,opponent,home_away,innings,batting_order,inning_assignments,pitching_plan,ai_reasoning,available_players,locked_positions,status,created_at&order=created_at.desc&limit=20`,
+      { headers: { apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY } }
+    )
+    const data = await resp.json()
+    setSavedPlans(Array.isArray(data) ? data : [])
+  }
+
+  function loadPlan(plan) {
+    // Restore all game setup state from saved plan
+    setGameDate(plan.game_date || '')
+    setOpponent(plan.opponent || '')
+    setHomeAway(plan.home_away || 'home')
+    setInnings(plan.innings || 4)
+
+    // Restore availability from saved available_players list
+    const savedNames = new Set((plan.available_players || []).map(p => p.name))
+    setAvailability(prev => {
+      const next = {}
+      allPlayers.forEach(p => { next[p.name] = { available: savedNames.has(p.name) } })
+      return next
+    })
+
+    // Restore pool players (those not on the permanent roster)
+    const rosterNames = new Set(allPlayers.map(p => p.name))
+    const pool = (plan.available_players || []).filter(p => !rosterNames.has(p.name))
+    setPoolPlayers(pool)
+
+    // Restore locked positions
+    setLockedPositions(plan.locked_positions || {})
+
+    // Restore the lineup plan itself
+    setLineupPlan({
+      batting_order: plan.batting_order || [],
+      innings: plan.inning_assignments || [],
+      pitching_plan: plan.pitching_plan || '',
+      overall_reasoning: plan.ai_reasoning || '',
+      batting_reasoning: '',
+      compliance_notes: '',
+    })
+    setActiveInning(1)
+    setShowSaved(false)
+  }
     // Permanent team roster — always load from canonical list, NOT game_stats
     // (game_stats only has players who played, misses absent regulars and includes pool players)
     const TEAM_ROSTER = [
@@ -138,17 +184,27 @@ export default function LineupPage() {
   async function savePlan() {
     if (!lineupPlan) return
     setSaving(true)
-    await sbInsert('lineup_plans', {
-      game_date: gameDate, opponent, home_away: homeAway, innings,
-      available_players: activePlayers,
-      batting_order: lineupPlan.batting_order,
-      inning_assignments: lineupPlan.innings,
-      pitching_plan: lineupPlan.pitching_plan,
-      ai_reasoning: lineupPlan.overall_reasoning,
-      locked_positions: lockedPositions,
-      status: 'draft'
+    await fetch(`${SUPABASE_URL}/rest/v1/lineup_plans`, {
+      method: 'POST',
+      headers: {
+        apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates,return=minimal'
+      },
+      body: JSON.stringify({
+        game_date: gameDate, opponent, home_away: homeAway, innings,
+        available_players: activePlayers,
+        batting_order: lineupPlan.batting_order,
+        inning_assignments: lineupPlan.innings,
+        pitching_plan: lineupPlan.pitching_plan,
+        ai_reasoning: lineupPlan.overall_reasoning,
+        locked_positions: lockedPositions,
+        status: 'draft',
+        updated_at: new Date().toISOString()
+      })
     })
     setSaving(false)
+    await loadSavedPlans()
     alert('Lineup saved!')
   }
 
@@ -177,11 +233,14 @@ export default function LineupPage() {
   return (
     <div style={s.page}>
       <style>{`
+        @media screen {
+          .print-only { display: none !important; }
+        }
         @media print {
           .no-print { display: none !important; }
-          .print-page { page-break-after: always; }
-          body { background: white; }
-          .print-area { display: block !important; }
+          .print-only { display: block !important; }
+          body { background: white !important; margin: 0; padding: 0; }
+          @page { size: letter landscape; margin: 0.2in; }
         }
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
@@ -301,6 +360,36 @@ export default function LineupPage() {
               </div>
             </div>
 
+            {/* Saved lineups loader */}
+            {savedPlans.length > 0 && (
+              <div style={{marginBottom:'14px'}}>
+                <button onClick={() => setShowSaved(v => !v)}
+                  style={{background:'none',border:'none',cursor:'pointer',fontFamily:"'DM Mono',monospace",fontSize:'11px',color:'#c8922a',textTransform:'uppercase',letterSpacing:'0.08em',padding:'0',marginBottom:'8px'}}>
+                  {showSaved ? '▲' : '▼'} Saved Lineups ({savedPlans.length})
+                </button>
+                {showSaved && (
+                  <div style={{display:'flex',flexDirection:'column',gap:'6px'}}>
+                    {savedPlans.map(plan => (
+                      <div key={plan.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',background:'#f7f0e6',border:'1.5px solid rgba(44,21,5,0.12)',borderRadius:'8px'}}>
+                        <div>
+                          <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:'15px',color:'#2c1505'}}>
+                            {plan.game_date} — {plan.opponent}
+                          </span>
+                          <span style={{fontFamily:"'DM Mono',monospace",fontSize:'10px',color:'#7a5c3e',marginLeft:'10px'}}>
+                            {plan.home_away?.toUpperCase()} · {plan.innings} inn · {(plan.batting_order||[]).length} batters
+                          </span>
+                        </div>
+                        <button onClick={() => loadPlan(plan)}
+                          style={{padding:'6px 16px',background:'#2c1505',color:'#f7f0e6',border:'none',borderRadius:'6px',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:'13px',textTransform:'uppercase',letterSpacing:'0.06em',cursor:'pointer'}}>
+                          Load →
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <button onClick={generateLineup} disabled={generating}
               style={{...s.generateBtn, opacity:generating?0.6:1}}>
               {generating ? <><span style={{display:'inline-block',width:'16px',height:'16px',border:'2px solid rgba(247,240,230,0.3)',borderTop:'2px solid #f7f0e6',borderRadius:'50%',animation:'spin 0.7s linear infinite',marginRight:'8px',verticalAlign:'middle'}}></span>Generating...</> : '🤖 Generate AI Lineup'}
@@ -345,8 +434,8 @@ export default function LineupPage() {
               </div>
             </div>
 
-            {/* Print-ready card (always rendered, hidden on screen) */}
-            <div className="print-page" style={{display:'none'}}>
+            {/* Print-only card — hidden on screen, visible when printing */}
+            <div className="print-only">
               <PrintCard lineupPlan={lineupPlan} gameDate={gameDate} opponent={opponent} homeAway={homeAway} innings={innings} allPlayers={allPlayers} />
             </div>
 
