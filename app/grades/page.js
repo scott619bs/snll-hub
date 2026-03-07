@@ -31,33 +31,20 @@ export default function GradesPage() {
   }, [])
 
   async function loadData() {
-    // Load roster from game_stats or fallback to hardcoded
-    const statsResp = await fetch(`${SUPABASE_URL}/rest/v1/game_stats?team_name=eq.Myers&select=player_name,player_number&order=player_name`, {
-      headers: { apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY }
-    })
-    const statsData = await statsResp.json()
-    const uniquePlayers = []
-    const seen = new Set()
-    ;(statsData || []).forEach(r => {
-      if (r.player_name && !seen.has(r.player_name)) {
-        seen.add(r.player_name)
-        uniquePlayers.push({ name: r.player_name, number: r.player_number })
-      }
-    })
-
-    // Fallback roster if no stats yet
-    if (uniquePlayers.length === 0) {
-      const defaults = [
-        { name:'Joey Heckman', number:23 }, { name:'Cristiano Afram', number:7 },
-        { name:'Matthew Barragan', number:10 }, { name:'Ace Escobar', number:4 },
-        { name:'Preston Hale', number:21 }, { name:'Everett DeHaan', number:9 },
-        { name:'Scotty J Myers', number:13 }, { name:'Avery Benton', number:null },
-        { name:'Trevor Snoddy', number:null }, { name:'Luca Zuckerman', number:6 },
-        { name:'Benny Dowgaluk', number:67 },
-      ]
-      defaults.forEach(p => { if (!seen.has(p.name)) { seen.add(p.name); uniquePlayers.push(p) } })
-    }
-    setPlayers(uniquePlayers)
+    // Always use permanent team roster — never game_stats (which misses absent players)
+    const TEAM_ROSTER = [
+      { name: 'Joey Heckman',     number: 23 },
+      { name: 'Cristiano Afram',  number: 7  },
+      { name: 'Matthew Barragan', number: 10 },
+      { name: 'Ace Escobar',      number: 4  },
+      { name: 'Preston Hale',     number: 21 },
+      { name: 'Everett DeHaan',   number: 9  },
+      { name: 'Scotty J Myers',   number: 13 },
+      { name: 'Luca Bloemker',    number: null },
+      { name: 'Avery Benton',     number: null },
+      { name: 'Trevor Snoddy',    number: null },
+    ]
+    setPlayers(TEAM_ROSTER)
 
     // Load existing grades
     const gradesResp = await fetch(`${SUPABASE_URL}/rest/v1/player_position_grades?select=*`, {

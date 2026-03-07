@@ -28,8 +28,10 @@ export default function LineupPage() {
   const [homeAway, setHomeAway] = useState('home')
   const [innings, setInnings]   = useState(4)
   const [allPlayers, setAllPlayers] = useState([])
-  const [availability, setAvailability] = useState({}) // name → { available, isPool }
+  const [availability, setAvailability] = useState({}) // name → { available }
   const [lockedPositions, setLockedPositions] = useState({}) // name → pos
+  const [poolPlayers, setPoolPlayers] = useState([]) // added per-game: [{name,number}]
+  const [poolInput, setPoolInput] = useState({ name: '', number: '' })
   const [lineupPlan, setLineupPlan]   = useState(null)
   const [generating, setGenerating]   = useState(false)
   const [activeInning, setActiveInning] = useState(1)
@@ -48,34 +50,30 @@ export default function LineupPage() {
   }, [])
 
   async function loadPlayers() {
-    // Try to get from game_stats
-    const resp = await fetch(`${SUPABASE_URL}/rest/v1/game_stats?team_name=eq.Myers&select=player_name,player_number&order=player_name`, {
-      headers: { apikey: SERVICE_KEY, Authorization: 'Bearer ' + SERVICE_KEY }
-    })
-    const data = await resp.json()
-    const seen = new Set()
-    const players = []
-    ;(data || []).forEach(r => {
-      if (r.player_name && !seen.has(r.player_name)) {
-        seen.add(r.player_name)
-        players.push({ name: r.player_name, number: r.player_number })
-      }
-    })
-    if (players.length === 0) {
-      // Fallback
-      [{ name:'Joey Heckman', number:23 }, { name:'Cristiano Afram', number:7 }, { name:'Matthew Barragan', number:10 },
-       { name:'Ace Escobar', number:4 }, { name:'Preston Hale', number:21 }, { name:'Everett DeHaan', number:9 },
-       { name:'Scotty J Myers', number:13 }, { name:'Avery Benton', number:null }, { name:'Trevor Snoddy', number:null },
-       { name:'Luca Zuckerman', number:6 }, { name:'Benny Dowgaluk', number:67 },
-      ].forEach(p => { if (!seen.has(p.name)) { seen.add(p.name); players.push(p) } })
-    }
-    setAllPlayers(players)
+    // Permanent team roster — always load from canonical list, NOT game_stats
+    // (game_stats only has players who played, misses absent regulars and includes pool players)
+    const TEAM_ROSTER = [
+      { name: 'Joey Heckman',     number: 23 },
+      { name: 'Cristiano Afram',  number: 7  },
+      { name: 'Matthew Barragan', number: 10 },
+      { name: 'Ace Escobar',      number: 4  },
+      { name: 'Preston Hale',     number: 21 },
+      { name: 'Everett DeHaan',   number: 9  },
+      { name: 'Scotty J Myers',   number: 13 },
+      { name: 'Luca Bloemker',    number: null },
+      { name: 'Avery Benton',     number: null },
+      { name: 'Trevor Snoddy',    number: null },
+    ]
+    setAllPlayers(TEAM_ROSTER)
     const avail = {}
-    players.forEach(p => { avail[p.name] = { available: true, isPool: false } })
+    TEAM_ROSTER.forEach(p => { avail[p.name] = { available: true } })
     setAvailability(avail)
   }
 
-  const activePlayers = allPlayers.filter(p => availability[p.name]?.available)
+  const activePlayers = [
+    ...allPlayers.filter(p => availability[p.name]?.available).map(p => ({ ...p, isPool: false })),
+    ...poolPlayers.map(p => ({ ...p, isPool: true }))
+  ]
 
   async function generateLineup() {
     if (!gameDate || !opponent || activePlayers.length < 9) {
@@ -227,30 +225,57 @@ export default function LineupPage() {
               </div>
             </div>
 
-            {/* Row 2: player availability */}
+            {/* Row 2: team player availability */}
             <div style={{marginBottom:'14px'}}>
-              <label style={s.label}>Player Availability ({activePlayers.length} available)</label>
+              <label style={s.label}>Team Availability — mark absent players ❌ ({activePlayers.filter(p=>!p.isPool).length} of {allPlayers.length} available)</label>
               <div style={{display:'flex',flexWrap:'wrap',gap:'8px',marginTop:'6px'}}>
                 {allPlayers.map(p => {
                   const avail = availability[p.name]
                   return (
-                    <div key={p.name} style={{display:'flex',alignItems:'center',gap:'4px',padding:'6px 10px',background:avail?.available?'#edf7ee':'#fdf0f0',border:`1.5px solid ${avail?.available?'#1e6b2e':'#a82020'}`,borderRadius:'8px'}}>
-                      <button onClick={() => setAvailability(prev => ({...prev,[p.name]:{...prev[p.name],available:!prev[p.name]?.available}}))}
-                        style={{background:'none',border:'none',cursor:'pointer',fontSize:'14px',padding:'0'}}>
-                        {avail?.available ? '✅' : '❌'}
-                      </button>
+                    <button key={p.name}
+                      onClick={() => setAvailability(prev => ({...prev,[p.name]:{available:!prev[p.name]?.available}}))}
+                      style={{display:'flex',alignItems:'center',gap:'5px',padding:'6px 12px',
+                        background:avail?.available?'#edf7ee':'#fdf0f0',
+                        border:`1.5px solid ${avail?.available?'#1e6b2e':'#a82020'}`,
+                        borderRadius:'8px',cursor:'pointer'}}>
+                      <span style={{fontSize:'13px'}}>{avail?.available ? '✅' : '❌'}</span>
                       <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:'13px',color:'#2c1505'}}>
-                        {p.number && <span style={{color:'#c8922a'}}>#{p.number} </span>}{p.name.split(' ').slice(-1)[0]}
+                        {p.number && <span style={{color:'#c8922a'}}>#{p.number} </span>}
+                        {p.name.split(' ').slice(-1)[0]}
                       </span>
-                      {avail?.available && (
-                        <button onClick={() => setAvailability(prev => ({...prev,[p.name]:{...prev[p.name],isPool:!prev[p.name]?.isPool}}))}
-                          style={{background:avail?.isPool?'#7b1fa2':'transparent',border:'1px solid #7b1fa2',borderRadius:'4px',cursor:'pointer',fontSize:'9px',padding:'1px 5px',color:avail?.isPool?'white':'#7b1fa2',fontFamily:"'DM Mono',monospace"}}>
-                          POOL
-                        </button>
-                      )}
-                    </div>
+                    </button>
                   )
                 })}
+              </div>
+            </div>
+
+            {/* Row 2b: pool players for THIS game */}
+            <div style={{marginBottom:'14px'}}>
+              <label style={s.label}>🟣 Pool Players — add game-day pool players only</label>
+              <div style={{display:'flex',gap:'8px',alignItems:'center',marginTop:'6px',flexWrap:'wrap'}}>
+                {poolPlayers.map((p, i) => (
+                  <div key={i} style={{display:'flex',alignItems:'center',gap:'5px',padding:'6px 12px',background:'#f3e5f5',border:'1.5px solid #7b1fa2',borderRadius:'8px'}}>
+                    <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:'13px',color:'#4a148c'}}>
+                      {p.number && <span style={{color:'#7b1fa2'}}>#{p.number} </span>}{p.name}
+                    </span>
+                    <span style={{fontFamily:"'DM Mono',monospace",fontSize:'9px',background:'#7b1fa2',color:'white',padding:'1px 5px',borderRadius:'3px'}}>POOL</span>
+                    <button onClick={() => setPoolPlayers(prev => prev.filter((_,j)=>j!==i))}
+                      style={{background:'none',border:'none',cursor:'pointer',color:'#7b1fa2',fontSize:'14px',lineHeight:1,padding:'0 2px'}}>×</button>
+                  </div>
+                ))}
+                <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
+                  <input value={poolInput.name} onChange={e=>setPoolInput(p=>({...p,name:e.target.value}))}
+                    placeholder="Full name" style={{...s.input,padding:'6px 10px',fontSize:'13px',width:'160px'}} />
+                  <input value={poolInput.number} onChange={e=>setPoolInput(p=>({...p,number:e.target.value}))}
+                    placeholder="#" style={{...s.input,padding:'6px 8px',fontSize:'13px',width:'55px'}} />
+                  <button onClick={() => {
+                    if (!poolInput.name.trim()) return
+                    setPoolPlayers(prev => [...prev, { name: poolInput.name.trim(), number: poolInput.number ? +poolInput.number : null }])
+                    setPoolInput({ name:'', number:'' })
+                  }} style={{padding:'6px 14px',background:'#7b1fa2',color:'white',border:'none',borderRadius:'7px',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:'13px',cursor:'pointer'}}>
+                    + Add
+                  </button>
+                </div>
               </div>
             </div>
 
