@@ -9,6 +9,8 @@ const TABS = [
   { id: 'stats', label: 'Stats Import', icon: '⚾', coachOnly: true },
   { id: 'roster', label: 'Roster', icon: '📋', coachOnly: false },
   { id: 'schedule', label: 'Schedule', icon: '📅', coachOnly: false },
+  { id: 'lineup', label: 'Lineup', icon: '📋', coachOnly: true, isLink: '/lineup' },
+  { id: 'grades', label: 'Grades', icon: '⭐', coachOnly: true, isLink: '/grades' },
   { id: 'admin', label: 'Admin', icon: '🔐', coachOnly: true, isLink: '/admin' },
 ]
 
