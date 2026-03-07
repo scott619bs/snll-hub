@@ -78,29 +78,27 @@ export default function Dashboard() {
 
       {/* Tab Nav */}
       <nav style={s.nav}>
-        {visibleTabs.map(tab => (
-          {tab.isLink ? (
-            <a
-              key={tab.id}
-              href={tab.isLink}
-              style={{...s.navTab, textDecoration:'none'}}
-            >
-              <span>{tab.icon}</span>
-              <span>{tab.label}</span>
-            </a>
-          ) : (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                ...s.navTab,
-                ...(activeTab === tab.id ? s.navTabActive : {}),
-              }}
-            >
-              <span>{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          )}
+        {visibleTabs.map(tab => tab.isLink ? (
+          <a
+            key={tab.id}
+            href={tab.isLink}
+            style={{...s.navTab, textDecoration:'none'}}
+          >
+            <span>{tab.icon}</span>
+            <span>{tab.label}</span>
+          </a>
+        ) : (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              ...s.navTab,
+              ...(activeTab === tab.id ? s.navTabActive : {}),
+            }}
+          >
+            <span>{tab.icon}</span>
+            <span>{tab.label}</span>
+          </button>
         ))}
       </nav>
 
