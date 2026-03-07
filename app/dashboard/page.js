@@ -9,6 +9,7 @@ const TABS = [
   { id: 'stats', label: 'Stats Import', icon: '⚾', coachOnly: true },
   { id: 'roster', label: 'Roster', icon: '📋', coachOnly: false },
   { id: 'schedule', label: 'Schedule', icon: '📅', coachOnly: false },
+  { id: 'admin', label: 'Admin', icon: '🔐', coachOnly: true, isLink: '/admin' },
 ]
 
 export default function Dashboard() {
@@ -78,17 +79,28 @@ export default function Dashboard() {
       {/* Tab Nav */}
       <nav style={s.nav}>
         {visibleTabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            style={{
-              ...s.navTab,
-              ...(activeTab === tab.id ? s.navTabActive : {}),
-            }}
-          >
-            <span>{tab.icon}</span>
-            <span>{tab.label}</span>
-          </button>
+          {tab.isLink ? (
+            <a
+              key={tab.id}
+              href={tab.isLink}
+              style={{...s.navTab, textDecoration:'none'}}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+            </a>
+          ) : (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                ...s.navTab,
+                ...(activeTab === tab.id ? s.navTabActive : {}),
+              }}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+            </button>
+          )}
         ))}
       </nav>
 
