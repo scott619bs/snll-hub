@@ -128,7 +128,8 @@ function StagingCard({ item, onUpdate }) {
 
       const result = await aiClassify(
         null, input, localItem.source_type,
-        localItem.game_date, localItem.opponent, message
+        localItem.game_date, localItem.opponent, message,
+        localItem.extracted_json  // pass previous analysis so Claude can self-correct
       )
 
       // Append to review history
