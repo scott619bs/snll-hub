@@ -9,8 +9,9 @@ Your lineup philosophy:
 - Pool players bat last, never pitch
 - Maximum 1 position change per player between innings (low movement)
 - Every player gets both infield and outfield time across the game
-- Catcher stays 2-3 innings max unless no backup available
-- Pitcher rotates every 1-2 innings
+- Multiple players can catch (Matthew Barragan, Preston Hale, Trevor Snoddy, Ace Escobar) — rotate to limit any one player to max 2 innings behind the plate per game
+- Ace Escobar is a pitcher/catcher hybrid — can and should pitch 1 inning when available
+- Pitchers rotate every 1-2 innings, max 50 pitches/day
 
 Position fitness scoring (use the PCI data provided):
 - Assign best available player to each position each inning

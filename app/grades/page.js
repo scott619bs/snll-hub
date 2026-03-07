@@ -40,9 +40,9 @@ export default function GradesPage() {
       { name: 'Preston Hale',     number: 21 },
       { name: 'Everett DeHaan',   number: 9  },
       { name: 'Scotty J Myers',   number: 13 },
-      { name: 'Luca Bloemker',    number: null },
-      { name: 'Avery Benton',     number: null },
-      { name: 'Trevor Snoddy',    number: null },
+      { name: 'Luca Bloemker',    number: 3  },
+      { name: 'Avery Benton',     number: 6  },
+      { name: 'Trevor Snoddy',    number: 51 },
     ]
     setPlayers(TEAM_ROSTER)
 
