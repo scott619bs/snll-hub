@@ -18,6 +18,7 @@ export default function StatsImport() {
   const [sending, setSending] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const textareaRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   function addLog(msg, type = 'ok') {
     setLog(prev => [...prev, { msg, type, ts: new Date().toLocaleTimeString() }])
@@ -175,6 +176,25 @@ export default function StatsImport() {
     }
   }, [gameDate, opponent])
 
+  function handleFileInput(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader()
+      reader.onload = async (ev) => {
+        const b64 = ev.target.result.split(',')[1]
+        setInputVal('[Image selected — sending to Vision...]')
+        await stageInput(b64, 'image', file.type)
+        setInputVal('')
+      }
+      reader.readAsDataURL(file)
+    } else {
+      file.text().then(text => setInputVal(text))
+    }
+    // Reset so same file can be re-selected
+    e.target.value = ''
+  }
+
   const logColor = { ok:'#1e6b2e', error:'#a82020', warn:'#8a6000', info:'#2c1505', next:'#c8922a' }
   const canSend = !sending && inputVal.trim() && gameDate && opponent && !inputVal.startsWith('[Image')
 
@@ -236,7 +256,7 @@ export default function StatsImport() {
         <div style={s.body}>
           <p style={s.hint}>
             <strong>CSV:</strong> GC app → any stats tab → Export → Copy CSV → paste below<br/>
-            <strong>Image:</strong> Copy a screenshot → Ctrl+V directly in the box, or drag & drop an image file
+            <strong>Image:</strong> Ctrl+V screenshot, drag & drop, or tap <strong>📷 Upload Image</strong> below (iOS/mobile)
           </p>
           <div
             onDragOver={e=>{e.preventDefault();setDragOver(true)}}
@@ -260,6 +280,24 @@ export default function StatsImport() {
             />
             {dragOver && <div style={s.dropOverlay}>Drop image here</div>}
           </div>
+          {/* Image upload button — works on iOS Safari where paste is blocked */}
+          <div style={{display:'flex',gap:'8px',marginTop:'10px'}}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,text/csv,.csv"
+              onChange={handleFileInput}
+              style={{display:'none'}}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={sending}
+              style={{...s.uploadBtn, opacity:sending?0.4:1}}
+            >
+              📷 Upload Image / CSV
+            </button>
+          </div>
+
           <button
             onClick={handleSend}
             disabled={!canSend}
@@ -311,5 +349,6 @@ const s = {
   hint:{fontSize:'12px',color:'#7a5c3e',marginBottom:'12px',lineHeight:1.6,fontFamily:"'DM Mono',monospace"},
   textarea:{width:'100%',padding:'12px',border:'1.5px dashed rgba(44,21,5,0.2)',borderRadius:'9px',fontSize:'12px',fontFamily:"'DM Mono',monospace",color:'#1a0e06',background:'#f7f0e6',outline:'none',resize:'vertical',lineHeight:1.4,transition:'all 0.15s'},
   dropOverlay:{position:'absolute',inset:0,background:'rgba(200,146,42,0.12)',border:'2px solid #c8922a',borderRadius:'9px',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:'18px',color:'#c8922a',pointerEvents:'none'},
-  sendBtn:{marginTop:'10px',width:'100%',padding:'13px',background:'#2c1505',color:'#f7f0e6',border:'none',borderRadius:'9px',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:'17px',textTransform:'uppercase',letterSpacing:'0.1em'},
+  uploadBtn:{width:'100%',padding:'11px',background:'#f7f0e6',border:'1.5px solid rgba(44,21,5,0.2)',borderRadius:'9px',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:'15px',textTransform:'uppercase',letterSpacing:'0.08em',color:'#2c1505',cursor:'pointer'},
+  sendBtn:{marginTop:'8px',width:'100%',padding:'13px',background:'#2c1505',color:'#f7f0e6',border:'none',borderRadius:'9px',fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:'17px',textTransform:'uppercase',letterSpacing:'0.1em'},
 }
