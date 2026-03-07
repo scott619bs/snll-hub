@@ -6,7 +6,6 @@ import { parseCSV, classifyCSV, filterTotals, mapFullRow, aiClassify, sbInsert, 
 export default function StatsImport() {
   const [gameDate, setGameDate] = useState('')
   const [opponent, setOpponent] = useState('')
-  const [apiKey, setApiKey] = useState('')
   const [inputVal, setInputVal] = useState('')
   const [log, setLog] = useState([])
   const [sending, setSending] = useState(false)
@@ -40,9 +39,8 @@ export default function StatsImport() {
         addLog(`CSV detected: ${classification.toUpperCase()} (${confidence} confidence)`, 'info')
 
       } else if (inputType === 'image') {
-        if (!apiKey) { addLog('API key required for image classification', 'error'); setSending(false); return }
-        addLog('Sending image to Claude Vision...', 'info')
-        const result = await aiClassify(apiKey, { data: rawInput, mimeType }, 'image', gameDate, opponent)
+                addLog('Sending image to Claude Vision...', 'info')
+        const result = await aiClassify(null, { data: rawInput, mimeType }, 'image', gameDate, opponent)
         classification = result.classification
         confidence = result.confidence
         reason = result.reason
@@ -197,10 +195,7 @@ export default function StatsImport() {
                 {['Leon-Padres','LALL Minors B - 1','Sickmeyer-Green Camo Padres','Francis-Padres','Horner-Padres Minor B','Almada - City Connect'].map(o=><option key={o} value={o}/>)}
               </datalist>
             </div>
-            <div style={s.field}>
-              <label style={s.label}>Anthropic API Key <span style={{color:'#aaa'}}>(for images)</span></label>
-              <input type="password" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="sk-ant-... (required for image paste)" style={s.input} />
-            </div>
+
           </div>
         </div>
       </div>
@@ -281,7 +276,7 @@ const s = {
   tag:{marginLeft:'auto',background:'rgba(200,146,42,0.2)',color:'#c8922a',padding:'2px 7px',borderRadius:'4px',fontFamily:"'DM Mono',monospace",fontSize:'9px',letterSpacing:'0.06em'},
   clearBtn:{marginLeft:'auto',background:'rgba(247,240,230,0.1)',border:'1px solid rgba(247,240,230,0.2)',borderRadius:'4px',color:'rgba(247,240,230,0.6)',fontFamily:"'DM Mono',monospace",fontSize:'10px',padding:'2px 8px',cursor:'pointer'},
   body:{padding:'18px'},
-  row:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'14px'},
+  row:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'14px'},
   field:{display:'flex',flexDirection:'column',gap:'5px'},
   label:{fontFamily:"'DM Mono',monospace",fontSize:'10px',color:'#7a5c3e',textTransform:'uppercase',letterSpacing:'0.1em'},
   input:{padding:'9px 12px',border:'1.5px solid rgba(44,21,5,0.12)',borderRadius:'7px',fontSize:'14px',fontFamily:"'Barlow',sans-serif",color:'#1a0e06',background:'#f7f0e6',outline:'none'},

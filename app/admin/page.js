@@ -105,7 +105,6 @@ export default function AdminPage() {
 function StagingCard({ item, onUpdate }) {
   const [expanded, setExpanded] = useState(item.status === 'pending')
   const [message, setMessage] = useState('')
-  const [apiKey, setApiKey] = useState('')
   const [working, setWorking] = useState(false)
   const [localItem, setLocalItem] = useState(item)
   const [reanalyzed, setReanalyzed] = useState(false)
@@ -128,7 +127,7 @@ function StagingCard({ item, onUpdate }) {
         : localItem.raw_input
 
       const result = await aiClassify(
-        apiKey, input, localItem.source_type,
+        null, input, localItem.source_type,
         localItem.game_date, localItem.opponent, message
       )
 
@@ -268,19 +267,8 @@ function StagingCard({ item, onUpdate }) {
                   />
                 </div>
 
-                <div>
-                  <label style={s.label}>Anthropic API Key (required for re-analyze)</label>
-                  <input
-                    type="password"
-                    value={apiKey}
-                    onChange={e => setApiKey(e.target.value)}
-                    placeholder="sk-ant-..."
-                    style={s.inputSmall}
-                  />
-                </div>
-
                 <div style={s.btnRow}>
-                  <button onClick={handleReanalyze} disabled={working || !apiKey} style={{...s.btnSecondary, opacity:(!apiKey||working)?0.4:1}}>
+                  <button onClick={handleReanalyze} disabled={working} style={{...s.btnSecondary, opacity:working?0.4:1}}>
                     {working ? '...' : '🔄 Re-analyze'}
                   </button>
                   <button onClick={handleConfirm} disabled={working} style={{...s.btnConfirm, opacity:working?0.4:1}}>
