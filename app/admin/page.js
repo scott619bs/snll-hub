@@ -118,7 +118,6 @@ function StagingCard({ item, onUpdate }) {
   ].length
 
   async function handleReanalyze() {
-    if (!apiKey) { alert('Enter API key first'); return }
     setWorking(true)
     try {
       const isImage = localItem.source_type === 'image'
