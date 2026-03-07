@@ -552,10 +552,11 @@ export default function LineupPage() {
 }
 
 // ─── FIELD MAP SVG ────────────────────────────────────────────────────────────
-function FieldMap({ assignments, players }) {
+function FieldMap({ assignments, players, size }) {
   if (!assignments) return null
+  const dim = size || 300
   return (
-    <svg viewBox="0 0 300 280" style={{width:'100%',height:'auto',background:'#2d5a1b',borderRadius:'8px'}}>
+    <svg viewBox="0 0 300 280" style={{width:`${dim}px`,height:`${Math.round(dim*280/300)}px`,background:'#2d5a1b',borderRadius:'12px'}}>
       {/* Outfield arc */}
       <path d="M 20 260 Q 150 10 280 260" fill="none" stroke="#4a8c35" strokeWidth="2"/>
       {/* Infield diamond */}
@@ -592,82 +593,112 @@ function FieldMap({ assignments, players }) {
 function PrintCard({ lineupPlan, gameDate, opponent, homeAway, innings, allPlayers = [] }) {
   if (!lineupPlan) return null
 
-  return (
-    <div style={{fontFamily:"'Barlow Condensed',sans-serif",padding:'0.15in',width:'100%',background:'white'}}>
-      {/* Header */}
-      <div style={{background:'#2c1505',color:'#FFD54F',padding:'8px 16px',borderRadius:'8px',display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}}>
-        <div>
-          <div style={{fontSize:'22px',fontWeight:900,letterSpacing:'0.5px'}}>⚾ Dark Brown Padres vs {opponent}</div>
-          <div style={{fontSize:'11px',color:'#FFECB3'}}>SNLL Minor B · {gameDate} · {homeAway.toUpperCase()} · {innings} Innings</div>
+  const gameInfo = `${gameDate} \u00b7 ${homeAway.toUpperCase()} \u00b7 ${innings} inn`
+
+  // Full-page landscape field map per inning
+  const fieldPages = lineupPlan.innings.map(inn => (
+    <div key={inn.inning} style={{
+      width:'100%', height:'100vh', pageBreakAfter:'always', breakAfter:'page',
+      display:'flex', flexDirection:'column', background:'white', boxSizing:'border-box', padding:'0.3in'
+    }}>
+      <div style={{background:'#2c1505',color:'#FFD54F',padding:'10px 20px',borderRadius:'10px',display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}}>
+        <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:'26px"}}>
+          {"\u26be"} Dark Brown Padres vs {opponent}
+        </div>
+        <div style={{textAlign:'right'}}>
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:'36px',color:'#FFD54F'}}>INNING {inn.inning}</div>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:'11px',color:'#FFECB3'}}>{gameInfo}</div>
         </div>
       </div>
-
-      {/* Batting order + innings grid side by side */}
-      <div style={{display:'grid',gridTemplateColumns:'180px 1fr',gap:'8px',marginBottom:'8px'}}>
-        {/* Batting order */}
-        <div style={{border:'2px solid #2c1505',borderRadius:'6px',overflow:'hidden'}}>
-          <div style={{background:'#2c1505',color:'#FFD54F',padding:'4px 8px',fontSize:'13px',fontWeight:800,textTransform:'uppercase'}}>Batting Order</div>
-          {lineupPlan.batting_order.map((name, i) => (
-            <div key={i} style={{display:'flex',gap:'8px',padding:'4px 8px',borderBottom:'1px solid #f0e8dc',background:i%2===0?'white':'#fafaf8'}}>
-              <span style={{fontWeight:800,color:'#c8922a',minWidth:'16px'}}>{i+1}</span>
-              <span style={{fontSize:'14px',fontWeight:700}}>{name}</span>
+      <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center'}}>
+        <FieldMap assignments={inn.assignments} players={allPlayers} size={480} />
+      </div>
+      <div style={{display:'flex',gap:'8px',flexWrap:'wrap',justifyContent:'center',marginTop:'16px'}}>
+        {POSITIONS.map(pos => {
+          const player = inn.assignments?.[pos]
+          if (!player) return null
+          const lastName = player.split(' ').slice(-1)[0]
+          const p = allPlayers.find(x => x.name === player)
+          return (
+            <div key={pos} style={{background:'#f7f0e6',border:'2px solid #2c1505',borderRadius:'8px',padding:'6px 14px',textAlign:'center',minWidth:'78px'}}>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:'20px',color:'#c8922a'}}>{pos}</div>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:'15px',color:'#2c1505'}}>{lastName}</div>
+              {p?.number && <div style={{fontFamily:"'DM Mono',monospace",fontSize:'10px',color:'#7a5c3e'}}>#{p.number}</div>}
             </div>
-          ))}
-        </div>
+          )
+        })}
+      </div>
+    </div>
+  ))
 
-        {/* Position grid */}
-        <div style={{border:'2px solid #2c1505',borderRadius:'6px',overflow:'hidden'}}>
-          <table style={{width:'100%',borderCollapse:'collapse'}}>
+  // Quarter-page pocket card — 4 per page
+  const PocketCard = () => (
+    <div style={{
+      width:'50%', height:'50%', boxSizing:'border-box', padding:'0.12in',
+      border:'1px dashed #bbb', display:'flex', flexDirection:'column', gap:'5px'
+    }}>
+      <div style={{background:'#2c1505',color:'#FFD54F',padding:'3px 8px',borderRadius:'4px',display:'flex',justifyContent:'space-between',alignItems:'center',fontFamily:"'Barlow Condensed',sans-serif"}}>
+        <span style={{fontWeight:900,fontSize:'12px'}}>DBP vs {opponent}</span>
+        <span style={{fontSize:'9px',color:'#FFECB3'}}>{gameInfo}</span>
+      </div>
+      <div style={{display:'flex',gap:'5px',flex:1,overflow:'hidden'}}>
+        <div style={{minWidth:'85px',border:'1.5px solid #2c1505',borderRadius:'3px',overflow:'hidden'}}>
+          <div style={{background:'#2c1505',color:'#FFD54F',padding:'2px 4px',fontSize:'8px',fontWeight:800,textTransform:'uppercase',fontFamily:"'Barlow Condensed',sans-serif"}}>Batting Order</div>
+          {lineupPlan.batting_order.map((name, i) => {
+            const p = allPlayers.find(x => x.name === name)
+            const lastName = name.split(' ').slice(-1)[0]
+            return (
+              <div key={i} style={{display:'flex',gap:'3px',padding:'1px 4px',borderBottom:'1px solid #f0e8dc',background:i%2===0?'white':'#fafaf8',alignItems:'center',fontFamily:"'Barlow Condensed',sans-serif"}}>
+                <span style={{fontWeight:900,color:'#c8922a',fontSize:'10px',minWidth:'11px'}}>{i+1}</span>
+                <span style={{fontSize:'10px',fontWeight:700,flex:1}}>{lastName}</span>
+                {p?.number && <span style={{fontSize:'8px',color:'#7a5c3e'}}>#{p.number}</span>}
+              </div>
+            )
+          })}
+        </div>
+        <div style={{flex:1,border:'1.5px solid #2c1505',borderRadius:'3px',overflow:'hidden'}}>
+          <table style={{width:'100%',borderCollapse:'collapse',fontSize:'8px'}}>
             <thead>
               <tr style={{background:'#2c1505'}}>
-                <th style={{color:'#FFD54F',padding:'4px 8px',fontSize:'12px',textAlign:'left'}}>POS</th>
-                {lineupPlan.innings.map(inn => <th key={inn.inning} style={{color:'#FFD54F',padding:'4px 8px',fontSize:'12px',textAlign:'center'}}>INN {inn.inning}</th>)}
+                <th style={{color:'#FFD54F',padding:'2px 3px',textAlign:'left',fontWeight:800,fontFamily:"'Barlow Condensed',sans-serif"}}>POS</th>
+                {lineupPlan.innings.map(inn => (
+                  <th key={inn.inning} style={{color:'#FFD54F',padding:'2px 3px',textAlign:'center',fontWeight:800,fontFamily:"'Barlow Condensed',sans-serif"}}>I{inn.inning}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {POSITIONS.map((pos, ri) => (
                 <tr key={pos} style={{background:ri%2===0?'white':'#fafaf8'}}>
-                  <td style={{padding:'5px 8px',fontWeight:800,color:'#c8922a',fontSize:'13px'}}>{pos}</td>
-                  {lineupPlan.innings.map(inn => (
-                    <td key={inn.inning} style={{padding:'5px 8px',fontSize:'13px',fontWeight:600,textAlign:'center'}}>
-                      {inn.assignments?.[pos] ? inn.assignments[pos].split(' ').slice(-1)[0] : '—'}
-                    </td>
-                  ))}
+                  <td style={{padding:'2px 3px',fontWeight:900,color:'#c8922a',fontSize:'9px',fontFamily:"'Barlow Condensed',sans-serif"}}>{pos}</td>
+                  {lineupPlan.innings.map(inn => {
+                    const player = inn.assignments?.[pos]
+                    const lastName = player ? player.split(' ').slice(-1)[0] : '\u2014'
+                    return <td key={inn.inning} style={{padding:'2px 3px',textAlign:'center',fontWeight:600,fontSize:'8px',fontFamily:"'Barlow Condensed',sans-serif"}}>{lastName}</td>
+                  })}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
-
-      {/* Field maps row */}
-      <div style={{display:'grid',gridTemplateColumns:`repeat(${innings},1fr)`,gap:'6px'}}>
-        {lineupPlan.innings.map(inn => (
-          <div key={inn.inning} style={{border:'2px solid #2c1505',borderRadius:'6px',overflow:'hidden'}}>
-            <div style={{background:'#2c1505',color:'#FFD54F',padding:'3px 8px',fontSize:'11px',fontWeight:800,textTransform:'uppercase'}}>Inning {inn.inning}</div>
-            <FieldMap assignments={inn.assignments} players={allPlayers} />
-          </div>
-        ))}
-      </div>
-
-      {/* Notes row */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'6px',marginTop:'6px'}}>
-        <div style={{border:'2px solid #5D4037',borderRadius:'6px',padding:'6px 8px'}}>
-          <div style={{fontWeight:800,fontSize:'11px',marginBottom:'3px'}}>⚾ Pitching Plan</div>
-          <div style={{fontSize:'10px',lineHeight:1.4,color:'#3E2723'}}>{lineupPlan.pitching_plan}</div>
-        </div>
-        <div style={{border:'2px solid #5D4037',borderRadius:'6px',padding:'6px 8px'}}>
-          <div style={{fontWeight:800,fontSize:'11px',marginBottom:'3px'}}>🎯 Strategy</div>
-          <div style={{fontSize:'10px',lineHeight:1.4,color:'#3E2723'}}>{lineupPlan.overall_reasoning}</div>
-        </div>
-        <div style={{border:'2px solid #5D4037',borderRadius:'6px',padding:'6px 8px'}}>
-          <div style={{fontWeight:800,fontSize:'11px',marginBottom:'3px'}}>✅ Compliance</div>
-          <div style={{fontSize:'10px',lineHeight:1.4,color:'#3E2723'}}>{lineupPlan.compliance_notes}</div>
-        </div>
+      <div style={{fontSize:'7px',color:'#3E2723',lineHeight:1.3,borderTop:'1px solid #ddd',paddingTop:'2px',fontFamily:"'Barlow Condensed',sans-serif"}}>
+        <strong>Pitching:</strong> {lineupPlan.pitching_plan?.slice(0,110)}{(lineupPlan.pitching_plan?.length||0) > 110 ? '\u2026' : ''}
       </div>
     </div>
   )
+
+  const pocketPage = (
+    <div style={{
+      width:'100%', height:'100vh', pageBreakAfter:'always', breakAfter:'page',
+      display:'flex', flexWrap:'wrap', background:'white', boxSizing:'border-box'
+    }}>
+      <PocketCard /><PocketCard /><PocketCard /><PocketCard />
+    </div>
+  )
+
+  return <div>{pocketPage}{fieldPages}</div>
 }
+
 
 const s = {
   page:{minHeight:'100vh',background:'var(--cream)',display:'flex',flexDirection:'column'},
