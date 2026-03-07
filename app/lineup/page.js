@@ -52,6 +52,27 @@ export default function LineupPage() {
     })
   }, [])
 
+  async function loadPlayers() {
+    // Permanent team roster — always load from canonical list, NOT game_stats
+    // (game_stats only has players who played, misses absent regulars and includes pool players)
+    const TEAM_ROSTER = [
+      { name: 'Joey Heckman',     number: 23 },
+      { name: 'Cristiano Afram',  number: 7  },
+      { name: 'Matthew Barragan', number: 10 },
+      { name: 'Ace Escobar',      number: 4  },
+      { name: 'Preston Hale',     number: 21 },
+      { name: 'Everett DeHaan',   number: 9  },
+      { name: 'Scotty J Myers',   number: 13 },
+      { name: 'Luca Bloemker',    number: 3  },
+      { name: 'Avery Benton',     number: 6  },
+      { name: 'Trevor Snoddy',    number: 51 },
+    ]
+    setAllPlayers(TEAM_ROSTER)
+    const init = {}
+    TEAM_ROSTER.forEach(p => { init[p.name] = { available: true } })
+    setAvailability(init)
+  }
+
   async function loadSavedPlans() {
     const resp = await fetch(
       `${SUPABASE_URL}/rest/v1/lineup_plans?select=id,game_date,opponent,home_away,innings,batting_order,inning_assignments,pitching_plan,ai_reasoning,available_players,locked_positions,status,created_at&order=created_at.desc&limit=20`,
@@ -95,25 +116,6 @@ export default function LineupPage() {
     })
     setActiveInning(1)
     setShowSaved(false)
-  }
-    // Permanent team roster — always load from canonical list, NOT game_stats
-    // (game_stats only has players who played, misses absent regulars and includes pool players)
-    const TEAM_ROSTER = [
-      { name: 'Joey Heckman',     number: 23 },
-      { name: 'Cristiano Afram',  number: 7  },
-      { name: 'Matthew Barragan', number: 10 },
-      { name: 'Ace Escobar',      number: 4  },
-      { name: 'Preston Hale',     number: 21 },
-      { name: 'Everett DeHaan',   number: 9  },
-      { name: 'Scotty J Myers',   number: 13 },
-      { name: 'Luca Bloemker',    number: 3  },
-      { name: 'Avery Benton',     number: 6  },
-      { name: 'Trevor Snoddy',    number: 51 },
-    ]
-    setAllPlayers(TEAM_ROSTER)
-    const avail = {}
-    TEAM_ROSTER.forEach(p => { avail[p.name] = { available: true } })
-    setAvailability(avail)
   }
 
   const activePlayers = [
